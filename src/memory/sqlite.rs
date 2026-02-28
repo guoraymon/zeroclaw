@@ -207,6 +207,7 @@ impl SqliteMemory {
     /// Deterministic content hash for embedding cache.
     /// Uses SHA-256 (truncated) instead of DefaultHasher, which is
     /// explicitly documented as unstable across Rust versions.
+    // LEARNED: 计算 SHA-256，并取前 8 字节转为 16 位 十六进制（8 字节=64 位，碰撞概率极低，足够了，能节省存储空间）
     fn content_hash(text: &str) -> String {
         use sha2::{Digest, Sha256};
         let hash = Sha256::digest(text.as_bytes());
@@ -234,6 +235,8 @@ impl SqliteMemory {
         let conn = self.conn.clone();
         let hash_c = hash.clone();
         let now_c = now.clone();
+        // LEARNED: 查询缓存，并更新 accessed_at
+        // NOTE: sqlite 是同步操作，要使用 spawn 避免阻塞进程
         let cached = tokio::task::spawn_blocking(move || -> anyhow::Result<Option<Vec<f32>>> {
             let conn = conn.lock();
             let mut stmt =
@@ -258,6 +261,7 @@ impl SqliteMemory {
         let embedding = self.embedder.embed_one(text).await?;
         let bytes = vector::vec_to_bytes(&embedding);
 
+        // LEARNED: 写入缓存，并使用 LRU 淘汰旧条目
         // Store in cache + LRU eviction (offloaded to blocking thread)
         let conn = self.conn.clone();
         #[allow(clippy::cast_possible_wrap)]

@@ -316,6 +316,8 @@ impl Agent {
             .build()
     }
 
+    // NOTE: 超限情况下只完整保留 system
+    // QUESTION: 未超限情况下 system 顺序可能会乱？如果不止一条 system
     fn trim_history(&mut self) {
         let max = self.config.max_history_messages;
         if self.history.len() <= max {
@@ -359,6 +361,7 @@ impl Agent {
     async fn execute_tool_call(&self, call: &ParsedToolCall) -> ToolExecutionResult {
         let start = Instant::now();
 
+        // NOTE: 线性查找工具
         let result = if let Some(tool) = self.tools.iter().find(|t| t.name() == call.name) {
             match tool.execute(call.arguments.clone()).await {
                 Ok(r) => {
@@ -418,6 +421,7 @@ impl Agent {
     }
 
     pub async fn turn(&mut self, user_message: &str) -> Result<String> {
+        // NOTE: insert system prompt
         if self.history.is_empty() {
             let system_prompt = self.build_system_prompt()?;
             self.history
@@ -426,6 +430,7 @@ impl Agent {
                 )));
         }
 
+        // NOTE: save user message to memory
         if self.auto_save {
             let _ = self
                 .memory
@@ -472,7 +477,9 @@ impl Agent {
                 Err(err) => return Err(err),
             };
 
+            // NOTE: 解析响应
             let (text, calls) = self.tool_dispatcher.parse_response(&response);
+            // NOTE: 没有工具调用，直接返回文本
             if calls.is_empty() {
                 let final_text = if text.is_empty() {
                     response.text.unwrap_or_default()
@@ -489,6 +496,7 @@ impl Agent {
                 return Ok(final_text);
             }
 
+            // NOTE: 工具调用同时还有文本输出
             if !text.is_empty() {
                 self.history
                     .push(ConversationMessage::Chat(ChatMessage::assistant(
@@ -503,6 +511,7 @@ impl Agent {
                 tool_calls: response.tool_calls.clone(),
             });
 
+            // NOTE: 执行工具调用
             let results = self.execute_tools(&calls).await;
             let formatted = self.tool_dispatcher.format_results(&results);
             self.history.push(formatted);

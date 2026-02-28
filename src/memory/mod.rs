@@ -77,6 +77,7 @@ pub fn effective_memory_backend_name(
 
 /// Legacy auto-save key used for model-authored assistant summaries.
 /// These entries are treated as untrusted context and should not be re-injected.
+// NOTE: 旧版本使用模型总结，这些条目应该被视为不可信的上下文，不应该再次注入。
 pub fn is_assistant_autosave_key(key: &str) -> bool {
     let normalized = key.trim().to_ascii_lowercase();
     normalized == "assistant_resp" || normalized.starts_with("assistant_resp_")

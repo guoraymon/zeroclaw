@@ -33,6 +33,7 @@ impl DefaultMemoryLoader {
 
 #[async_trait]
 impl MemoryLoader for DefaultMemoryLoader {
+    // LEARNED: 
     async fn load_context(
         &self,
         memory: &dyn Memory,
@@ -45,6 +46,7 @@ impl MemoryLoader for DefaultMemoryLoader {
 
         let mut context = String::from("[Memory context]\n");
         for entry in entries {
+            // NOTE: 防御性编程向后兼容
             if memory::is_assistant_autosave_key(&entry.key) {
                 continue;
             }

@@ -353,6 +353,7 @@ fn xml_tool_response(name: &str, args: &str) -> ChatResponse {
 // 1. Simple text response (no tools)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: base response
 #[tokio::test]
 async fn turn_returns_text_when_no_tools_called() {
     let provider = Box::new(ScriptedProvider::new(vec![text_response("Hello world")]));
@@ -373,6 +374,7 @@ async fn turn_returns_text_when_no_tools_called() {
 // 2. Single tool call → final response
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: tool call
 #[tokio::test]
 async fn turn_executes_single_tool_then_returns() {
     let provider = Box::new(ScriptedProvider::new(vec![
@@ -401,6 +403,7 @@ async fn turn_executes_single_tool_then_returns() {
 // 3. Multi-step tool chain (tool A → tool B → response)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: multi-step tool call
 #[tokio::test]
 async fn turn_handles_multi_step_tool_chain() {
     let (counting_tool, count) = CountingTool::new();
@@ -442,6 +445,7 @@ async fn turn_handles_multi_step_tool_chain() {
 // 4. Max-iteration bailout
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: 
 #[tokio::test]
 async fn turn_bails_out_at_max_iterations() {
     // Create more tool calls than max_tool_iterations allows.
@@ -477,6 +481,7 @@ async fn turn_bails_out_at_max_iterations() {
 // 5. Unknown tool name recovery
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: 
 #[tokio::test]
 async fn turn_handles_unknown_tool_gracefully() {
     let provider = Box::new(ScriptedProvider::new(vec![
@@ -541,6 +546,7 @@ async fn turn_recovers_from_tool_failure() {
     );
 }
 
+// NOTE: 
 #[tokio::test]
 async fn turn_recovers_from_tool_error() {
     let provider = Box::new(ScriptedProvider::new(vec![
@@ -585,6 +591,7 @@ async fn turn_propagates_provider_error() {
 // 8. History trimming during long conversations
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: 
 #[tokio::test]
 async fn history_trims_after_max_messages() {
     let max_history = 6;
@@ -623,6 +630,7 @@ async fn history_trims_after_max_messages() {
 // 9. Memory auto-save round-trip
 // ═══════════════════════════════════════════════════════════════════════════
 
+// NOTE: 
 #[tokio::test]
 async fn auto_save_stores_only_user_messages_in_memory() {
     let (mem, _tmp) = make_sqlite_memory();
@@ -661,6 +669,7 @@ async fn auto_save_stores_only_user_messages_in_memory() {
     );
 }
 
+// NOTE: 
 #[tokio::test]
 async fn auto_save_disabled_does_not_store() {
     let (mem, _tmp) = make_sqlite_memory();
