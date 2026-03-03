@@ -224,6 +224,7 @@ impl SqliteMemory {
 
     /// Get embedding from cache, or compute + cache it
     async fn get_or_compute_embedding(&self, text: &str) -> anyhow::Result<Option<Vec<f32>>> {
+        // NOTE: 默认情况下的 NoopEmbedding 是没有向量搜索的
         if self.embedder.dimensions() == 0 {
             return Ok(None); // Noop embedder
         }
@@ -296,15 +297,16 @@ impl SqliteMemory {
     ) -> anyhow::Result<Vec<(String, f32)>> {
         // Escape FTS5 special chars and build query
         let fts_query: String = query
-            .split_whitespace()
-            .map(|w| format!("\"{w}\""))
+            .split_whitespace() // NOTE: 按空格分词（如果是中文没空格，效果会很差）
+            .map(|w| format!("\"{w}\"")) // NOTE: 加引号
             .collect::<Vec<_>>()
-            .join(" OR ");
+            .join(" OR "); // NOTE: 用 OR 连接
 
         if fts_query.is_empty() {
             return Ok(Vec::new());
         }
 
+        // NOTE: SQL 查询
         let sql = "SELECT m.id, bm25(memories_fts) as score
                    FROM memories_fts f
                    JOIN memories m ON m.rowid = f.rowid
@@ -316,6 +318,7 @@ impl SqliteMemory {
         #[allow(clippy::cast_possible_wrap)]
         let limit_i64 = limit as i64;
 
+        // NOTE: 执行查询
         let rows = stmt.query_map(params![fts_query, limit_i64], |row| {
             let id: String = row.get(0)?;
             let score: f64 = row.get(1)?;
@@ -324,6 +327,7 @@ impl SqliteMemory {
             Ok((id, (-score) as f32))
         })?;
 
+        // NOTE: 收集结果
         let mut results = Vec::new();
         for row in rows {
             results.push(row?);
@@ -490,6 +494,7 @@ impl Memory for SqliteMemory {
             return Ok(Vec::new());
         }
 
+        // LEARNED: 向量搜索
         // Compute query embedding (async, before blocking work)
         let query_embedding = self.get_or_compute_embedding(query).await?;
 
@@ -503,9 +508,11 @@ impl Memory for SqliteMemory {
             let conn = conn.lock();
             let session_ref = sid.as_deref();
 
+            // LEARNED: 关键词搜索
             // FTS5 BM25 keyword search
             let keyword_results = Self::fts5_search(&conn, &query, limit * 2).unwrap_or_default();
 
+            // LEARNED: 向量搜索
             // Vector similarity search (if embeddings available)
             let vector_results = if let Some(ref qe) = query_embedding {
                 Self::vector_search(&conn, qe, limit * 2, None, session_ref).unwrap_or_default()
@@ -513,6 +520,7 @@ impl Memory for SqliteMemory {
                 Vec::new()
             };
 
+            // LEARNED: 混合合并
             // Hybrid merge
             let merged = if vector_results.is_empty() {
                 keyword_results
@@ -591,6 +599,7 @@ impl Memory for SqliteMemory {
                 }
             }
 
+            // NOTE: 回退到 like 搜索
             // If hybrid returned nothing, fall back to LIKE search.
             // Cap keyword count so we don't create too many SQL shapes,
             // which helps prepared-statement cache efficiency.
@@ -790,6 +799,7 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    // LEARNED: 
     fn temp_sqlite() -> (TempDir, SqliteMemory) {
         let tmp = TempDir::new().unwrap();
         let mem = SqliteMemory::new(tmp.path()).unwrap();
